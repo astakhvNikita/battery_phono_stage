@@ -229,6 +229,7 @@ static void MX_I2C1_Init(void)
 {
 
   /* USER CODE BEGIN I2C1_Init 0 */
+  uint8_t addr;
 
   /* USER CODE END I2C1_Init 0 */
 
@@ -263,6 +264,20 @@ static void MX_I2C1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN I2C1_Init 2 */
+  /* Sample ADDRx pins */
+  addr  = ((HAL_GPIO_ReadPin(ADDR0_GPIO_Port, ADDR0_Pin) == GPIO_PIN_SET) ?
+    0x01 : 0);
+  addr |= ((HAL_GPIO_ReadPin(ADDR1_GPIO_Port, ADDR1_Pin) == GPIO_PIN_SET) ?
+    0x02 : 0);
+  addr |= ((HAL_GPIO_ReadPin(ADDR2_GPIO_Port, ADDR2_Pin) == GPIO_PIN_SET) ?
+    0x04 : 0);
+  addr |= ((HAL_GPIO_ReadPin(ADDR3_GPIO_Port, ADDR3_Pin) == GPIO_PIN_SET) ?
+    0x08 : 0);
+
+  /* Update own address */
+  hi2c1.Init.OwnAddress1 = hi2c1.Init.OwnAddress1 + (addr << 1);
+  hi2c1.Instance->OAR1 &= ~I2C_OAR1_OA1EN;
+  hi2c1.Instance->OAR1  = (I2C_OAR1_OA1EN | hi2c1.Init.OwnAddress1);
 
   /* USER CODE END I2C1_Init 2 */
 

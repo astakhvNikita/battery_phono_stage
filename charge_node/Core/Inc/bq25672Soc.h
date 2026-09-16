@@ -79,6 +79,21 @@ typedef struct {
     /* EXTERNAL only: host callback and its context. */
     Bq25672ReadCurrentFn readDischargeCurrent;
     void     *readDischargeCurrentCtx;
+
+    /* --- Charge-state anchoring (CHG_STAT -> SoC) --- */
+
+    /* Enable SoC correction based on the BQ charge state machine. */
+    bool      useChargeStateAnchors;
+
+    /* SoC (%) to pull up to on the CC->CV transition (knee).       */
+    /* For LiFePO4 typically ~80. Ignored if 0.                     */
+    uint8_t   socCcCvKnee;
+
+    /* Upper SoC clamp while in PRECHARGE (0 => disabled). */
+    uint8_t   socMaxPrecharge;
+
+    /* Upper SoC clamp while in TRICKLE (0 => disabled). */
+    uint8_t   socMaxTrickle;
 } Bq25672SocConfig;
 
 /* ------------------------------------------------------------------ */
@@ -93,6 +108,7 @@ typedef struct {
     uint32_t          restAccMs;     /* accumulated rest time         */
     bool              calibrated;
     bool              reconnectPending;  /* OCV calib. after discharge */
+    Bq25672ChargeState prevChgState;     /* last CHG_STAT (anchoring) */
 } Bq25672Soc;
 
 /* ------------------------------------------------------------------ */

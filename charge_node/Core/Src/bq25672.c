@@ -30,18 +30,18 @@
 
 /* VINDPM (REG 0x05): 100 mV/LSB, offset 0 mV, 8-bit             */
 #define BQ25672_VINDPM_LSB_MV       100u
-#define BQ25672_VINDPM_OFFSET_MV    0u
+#define BQ25672_VINDPM_OFFSET_MV    0
 #define BQ25672_VINDPM_MAX_MV       22000u
 
 /* IPRECHG (REG 0x08 bits 5:0): 40 mA/LSB, offset 0 mA, 4-bit        */
 #define BQ25672_IPRECHG_LSB_MA      40u
-#define BQ25672_IPRECHG_OFFSET_MA   0u
+#define BQ25672_IPRECHG_OFFSET_MA   0
 #define BQ25672_IPRECHG_MAX_MA      2000u
 #define BQ25672_IPRECHG_MASK        0x3Fu   /* bits 5:0 */
 
 /* ITERM (REG 0x09 bits 4:0): 40 mA/LSB, offset 0 mA, 5-bit          */
 #define BQ25672_ITERM_LSB_MA        40u
-#define BQ25672_ITERM_OFFSET_MA     0u
+#define BQ25672_ITERM_OFFSET_MA     0
 #define BQ25672_ITERM_MAX_MA        1000u
 #define BQ25672_ITERM_MASK          0x1Fu   /* bits 4:0 */
 
@@ -202,7 +202,7 @@ Bq25672Status bq25672SetMinSysVoltageMv(Bq25672Handle *dev, uint16_t mv)
 Bq25672Status bq25672SetInputVoltageMv(Bq25672Handle *dev, uint16_t mv)
 {
     uint8_t code;
-    if (mv < BQ25672_VINDPM_OFFSET_MV || mv > BQ25672_VINDPM_MAX_MV)
+    if ((int16_t)mv < BQ25672_VINDPM_OFFSET_MV || mv > BQ25672_VINDPM_MAX_MV)
         return BQ25672_ERR_PARAM;
     code = (uint8_t)((mv - BQ25672_VINDPM_OFFSET_MV) / BQ25672_VINDPM_LSB_MV);
     return bq25672WriteReg(dev, BQ25672_REG_IN_V_LIM, code);
@@ -211,7 +211,7 @@ Bq25672Status bq25672SetInputVoltageMv(Bq25672Handle *dev, uint16_t mv)
 Bq25672Status bq25672SetPrechargeCurrentMa(Bq25672Handle *dev, uint16_t ma)
 {
     uint8_t code;
-    if (ma < BQ25672_IPRECHG_OFFSET_MA || ma > BQ25672_IPRECHG_MAX_MA)
+    if ((int16_t)ma < BQ25672_IPRECHG_OFFSET_MA || ma > BQ25672_IPRECHG_MAX_MA)
         return BQ25672_ERR_PARAM;
     code = (uint8_t)((ma - BQ25672_IPRECHG_OFFSET_MA) / BQ25672_IPRECHG_LSB_MA);
     return bq25672UpdateBits(dev, BQ25672_REG_PRECHG_CTRL,
@@ -221,7 +221,7 @@ Bq25672Status bq25672SetPrechargeCurrentMa(Bq25672Handle *dev, uint16_t ma)
 Bq25672Status bq25672SetTermCurrentMa(Bq25672Handle *dev, uint16_t ma)
 {
     uint8_t code;
-    if (ma < BQ25672_ITERM_OFFSET_MA || ma > BQ25672_ITERM_MAX_MA)
+    if ((int16_t)ma < BQ25672_ITERM_OFFSET_MA || ma > BQ25672_ITERM_MAX_MA)
         return BQ25672_ERR_PARAM;
     code = (uint8_t)((ma - BQ25672_ITERM_OFFSET_MA) / BQ25672_ITERM_LSB_MA);
     return bq25672UpdateBits(dev, BQ25672_REG_TERM_CTRL,

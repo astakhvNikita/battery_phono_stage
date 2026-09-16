@@ -88,6 +88,7 @@ Bq25672Status bq25672SocInit(Bq25672Soc *fg, Bq25672Handle *dev,
     fg->restAccMs        = 0;
     fg->calibrated       = false;
     fg->reconnectPending = false;
+    fg->prevChgState     = BQ25672_CHG_STATE_NOT_CHARGING;
 
     st = bq25672ReadVbatMv(dev, &vbatMv);
     if (st != BQ25672_OK) return st;
@@ -204,6 +205,67 @@ static Bq25672Status bq25672SocUpdateExternal(Bq25672Soc *fg,
     return BQ25672_OK;
 }
 
+/* ---- */
+/*  Anchor SoC to the BQ charge-state machine (CHG_STAT).             */
+/*  Called only while charging is meaningful; uses state transitions. */
+/* ---- */
+static Bq25672Status bq25672SocApplyChargeStateAnchors(Bq25672Soc *fg)
+{
+    Bq25672ChargeState cur;
+    Bq25672ChargeState prev = fg->prevChgState;
+    Bq25672Status st;
+
+    if (!fg->cfg.useChargeStateAnchors)
+        return BQ25672_OK;
+
+    st = bq25672GetChargeState(fg->dev, &cur);
+    if (st != BQ25672_OK) return st;
+
+    switch (cur) {
+    case BQ25672_CHG_STATE_DONE:
+        /* Hard anchor: fully charged. */
+        fg->socPct       = 100.0f;
+        fg->chargeAccMah = (float)fg->cfg.fullCapacityMah;
+        fg->calibrated   = true;
+        break;
+
+    case BQ25672_CHG_STATE_TAPER_CV:
+        /* CC->CV knee: pull SoC up to the configured knee once. */
+        if (prev == BQ25672_CHG_STATE_FAST_CC &&
+                fg->cfg.socCcCvKnee > 0 &&
+                fg->socPct < (float)fg->cfg.socCcCvKnee) {
+            fg->socPct       = (float)fg->cfg.socCcCvKnee;
+            fg->chargeAccMah = fg->socPct / 100.0f *
+                               (float)fg->cfg.fullCapacityMah;
+        }
+        break;
+
+    case BQ25672_CHG_STATE_PRECHARGE:
+        if (fg->cfg.socMaxPrecharge > 0 &&
+                fg->socPct > (float)fg->cfg.socMaxPrecharge) {
+            fg->socPct       = (float)fg->cfg.socMaxPrecharge;
+            fg->chargeAccMah = fg->socPct / 100.0f *
+                               (float)fg->cfg.fullCapacityMah;
+        }
+        break;
+
+    case BQ25672_CHG_STATE_TRICKLE:
+        if (fg->cfg.socMaxTrickle > 0 &&
+                fg->socPct > (float)fg->cfg.socMaxTrickle) {
+            fg->socPct       = (float)fg->cfg.socMaxTrickle;
+            fg->chargeAccMah = fg->socPct / 100.0f *
+                               (float)fg->cfg.fullCapacityMah;
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    fg->prevChgState = cur;
+    return BQ25672_OK;
+}
+
 Bq25672Status bq25672SocUpdate(Bq25672Soc *fg, uint32_t deltaMs)
 {
     uint16_t vbatMv;
@@ -216,13 +278,19 @@ Bq25672Status bq25672SocUpdate(Bq25672Soc *fg, uint32_t deltaMs)
 
     switch (fg->cfg.dischargeSource) {
         case BQ25672_DISCHARGE_VIA_RELAY:
-            return bq25672SocUpdateViaRelay(fg, deltaMs, vbatMv);
+            st = bq25672SocUpdateViaRelay(fg, deltaMs, vbatMv);
+            break;
         case BQ25672_DISCHARGE_EXTERNAL:
-            return bq25672SocUpdateExternal(fg, deltaMs, vbatMv);
+            st = bq25672SocUpdateExternal(fg, deltaMs, vbatMv);
+            break;
         case BQ25672_DISCHARGE_VIA_BQ:
         default:
-            return bq25672SocUpdateViaBq(fg, deltaMs, vbatMv);
+            st = bq25672SocUpdateViaBq(fg, deltaMs, vbatMv);
+            break;
     }
+    if (st != BQ25672_OK) return st;
+
+    return bq25672SocApplyChargeStateAnchors(fg);
 }
 
 Bq25672SocState bq25672SocGetState(const Bq25672Soc *fg)

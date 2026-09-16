@@ -63,6 +63,7 @@ void Error_Handler(void);
 #define BQ_nCE_GPIO_Port GPIOB
 #define BQ_nINT_Pin GPIO_PIN_2
 #define BQ_nINT_GPIO_Port GPIOB
+#define BQ_nINT_EXTI_IRQn EXTI2_3_IRQn
 #define BQ_STAT_Pin GPIO_PIN_12
 #define BQ_STAT_GPIO_Port GPIOB
 #define ADDR0_Pin GPIO_PIN_3
